@@ -60,11 +60,10 @@ Environment=ELASTICSEARCH_PORT=9200
 # EnvironmentFile=/etc/elastic-alert-notificator/env
 
 # Security hardening (optional but recommended)
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-PrivateTmp=true
-ReadWritePaths=/var/log/elastic-alert-notificator
+# Uncomment these after ensuring the service works:
+# NoNewPrivileges=true
+# ProtectHome=true
+# PrivateTmp=true
 
 # Logging
 StandardOutput=journal
