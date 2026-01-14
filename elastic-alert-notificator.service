@@ -25,7 +25,7 @@ User=notificator
 Group=notificator
 
 # Working directory where the application is installed
-WorkingDirectory=/opt/elastic-alert-notificator
+WorkingDirectory=/opt/Notificador-Elastic
 
 # Use uv with full path to run the script (manages virtual environment automatically)
 ExecStart=/usr/local/bin/uv run src/main.py
