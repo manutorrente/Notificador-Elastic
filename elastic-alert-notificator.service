@@ -27,7 +27,7 @@ Group=notificator
 # Working directory where the application is installed
 WorkingDirectory=/opt/elastic-alert-notificator
 
-# Use uv to run the script (manages virtual environment automatically)
+# Use uv with full path to run the script (manages virtual environment automatically)
 ExecStart=/usr/local/bin/uv run src/main.py
 
 # Graceful shutdown - sends SIGTERM first, then SIGKILL after timeout
