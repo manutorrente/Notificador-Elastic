@@ -1,21 +1,22 @@
 version: '3.8'
 
 services:
-  notification-service:
+  elastic-alert-notificator:
     build: .
-    container_name: notification-service
-    ports:
-      - "8000:8000"
+    container_name: elastic-alert-notificator
     env_file:
       - .env
     environment:
       - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
+      # Elasticsearch Configuration (can also be set in .env file)
+      # - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      # - ELASTICSEARCH_USERNAME=elastic
+      # - ELASTICSEARCH_PASSWORD=changeme
+      # - POLLING_INTERVAL=30
     volumes:
       - ./logs:/app/logs  # Optional: for persistent logs
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+    # Graceful shutdown configuration
+    stop_grace_period: 30s
+    stop_signal: SIGTERM

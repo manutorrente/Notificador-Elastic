@@ -1,25 +1,47 @@
-# Notification Service API
+# Elasticsearch Alert Notificator Service
 
-A FastAPI-based notification service that supports multiple notification methods including Email (SMTP) and Discord bot messaging. This service provides a REST API to send notifications through configured notification channels.
+A polling-based notification service that monitors Elasticsearch indexes for alert documents and sends notifications through configured channels (Email, Discord). Designed to run as a Linux systemd service.
+
+## How It Works
+
+1. **Kibana Alert Rules** create documents in Elasticsearch indexes when alerts trigger
+2. **This service** polls those indexes for unprocessed alert documents
+3. **Notifications** are sent through configured channels (Discord, Email)
+4. **Documents** are marked as processed to prevent duplicate notifications
+
+## Alert Document Format
+
+Alert documents in Elasticsearch should have the following structure:
+
+```json
+{
+    "processed": false,
+    "timestamp": "2026-01-14T10:30:00Z",
+    "message": "Alert message content here"
+}
+```
 
 ## Features
 
-- **Multi-channel notifications**: Send notifications via Email and Discord
-- **REST API**: Simple HTTP interface for triggering notifications
-- **Configurable**: Easy setup for different notification methods and recipients
-- **Logging**: Comprehensive logging for debugging and monitoring
+- **Multi-channel notifications**: Send notifications via Email (SMTP) and Discord (Webhook)
+- **Polling-based**: No need for Elastic Enterprise license
+- **Graceful shutdown**: Handles SIGTERM/SIGINT for clean service stops
+- **Automatic reconnection**: Reconnects to Elasticsearch if connection is lost
+- **Systemd ready**: Designed to run as a Linux service
+- **Configurable polling interval**: Adjust how often to check for new alerts
 - **Docker support**: Containerized deployment ready
 
 ## Supported Notification Methods
 
 - **Email (SMTP)**: Send emails via SMTP server
-- **Discord Bot**: Send messages to Discord channels via bot
+- **Discord Webhook**: Send messages to Discord channels via webhook
 
 ## Quick Start
 
 ### Prerequisites
 
 - Python 3.11+
+- Elasticsearch 8.x
 - Docker (optional, for containerized deployment)
 
 ### Environment Variables
@@ -27,10 +49,17 @@ A FastAPI-based notification service that supports multiple notification methods
 Create a `.env` file in the root directory with the following variables:
 
 ```env
-# Discord Bot Configuration
-DISCORD_BOT_TOKEN=your_discord_bot_token_here
+# Elasticsearch Configuration
+ELASTICSEARCH_HOSTS=http://localhost:9200
+ELASTICSEARCH_USERNAME=elastic
+ELASTICSEARCH_PASSWORD=your_password
+ELASTICSEARCH_VERIFY_CERTS=true
+# ELASTICSEARCH_CA_CERTS=/path/to/ca.crt  # Optional, for HTTPS
 
-# SMTP Email Configuration
+# Polling Configuration
+POLLING_INTERVAL=30  # seconds
+
+# SMTP Email Configuration (if using email notifications)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your_email@gmail.com
@@ -63,18 +92,18 @@ SMTP_FROM_EMAIL=your_email@gmail.com
    python main.py
    ```
 
-The API will be available at `http://localhost:8000`
+The service will start polling Elasticsearch for unprocessed alerts.
 
 ### Docker Deployment
 
 1. **Build the Docker image**
    ```bash
-   docker build -t notification-service .
+   docker build -t elastic-alert-notificator .
    ```
 
 2. **Run the container**
    ```bash
-   docker run -p 8000:8000 --env-file .env notification-service
+   docker run --env-file .env elastic-alert-notificator
    ```
 
 ### Docker Compose (Recommended)
@@ -84,20 +113,38 @@ The API will be available at `http://localhost:8000`
    docker-compose up -d
    ```
 
-## API Documentation
+## Systemd Service Installation
 
-Once the service is running, visit:
-- **Swagger UI**: `http://localhost:8000/docs`
-- **ReDoc**: `http://localhost:8000/redoc`
+To run as a Linux service:
 
-### API Endpoints
+1. **Copy service file**
+   ```bash
+   sudo cp elastic-alert-notificator.service /etc/systemd/system/
+   ```
 
-#### Send Notification
-```http
-POST /notify
-```
+2. **Edit the service file** to match your installation paths
 
-**Request Body:**
+3. **Create a service user** (optional but recommended)
+   ```bash
+   sudo useradd -r -s /bin/false notificator
+   ```
+
+4. **Enable and start the service**
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable elastic-alert-notificator
+   sudo systemctl start elastic-alert-notificator
+   ```
+
+5. **Check status**
+   ```bash
+   sudo systemctl status elastic-alert-notificator
+   ```
+
+6. **View logs**
+   ```bash
+   sudo journalctl -u elastic-alert-notificator -f
+   ```
 ```json
 {
   "notificator_id": "email_only",

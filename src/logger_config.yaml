@@ -16,7 +16,7 @@ loggers:
   src:
     handlers: [console]
     level: INFO
-    propagate: True
+    propagate: False
 
 root:
   handlers: [console]

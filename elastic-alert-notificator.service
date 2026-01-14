@@ -1,0 +1,75 @@
+# Systemd service file for Elastic Alert Notificator
+# 
+# Installation:
+# 1. Copy this file to /etc/systemd/system/elastic-alert-notificator.service
+# 2. Modify the paths and environment variables below to match your setup
+# 3. Run: sudo systemctl daemon-reload
+# 4. Run: sudo systemctl enable elastic-alert-notificator
+# 5. Run: sudo systemctl start elastic-alert-notificator
+#
+# Commands:
+# - Start:   sudo systemctl start elastic-alert-notificator
+# - Stop:    sudo systemctl stop elastic-alert-notificator
+# - Status:  sudo systemctl status elastic-alert-notificator
+# - Logs:    sudo journalctl -u elastic-alert-notificator -f
+
+[Unit]
+Description=Elasticsearch Alert Notificator Service
+Documentation=https://github.com/your-repo/NotificadorAlertasElastic
+After=network.target elasticsearch.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=notificator
+Group=notificator
+
+# Working directory where the application is installed
+WorkingDirectory=/opt/elastic-alert-notificator
+
+# Use uv to run the script (manages virtual environment automatically)
+ExecStart=/usr/local/bin/uv run src/main.py
+
+# Graceful shutdown - sends SIGTERM first, then SIGKILL after timeout
+ExecStop=/bin/kill -SIGTERM $MAINPID
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# Environment variables
+# You can set these here or use an environment file
+Environment=PYTHONUNBUFFERED=1
+Environment=POLLING_INTERVAL=30
+
+# Elasticsearch connection settings
+Environment=ELASTICSEARCH_HOST=172.30.215.74
+Environment=ELASTICSEARCH_PORT=9200
+# Uncomment and set these if authentication is required:
+# Environment=ELASTICSEARCH_USERNAME=elastic
+# Environment=ELASTICSEARCH_PASSWORD=your_password
+# Environment=ELASTICSEARCH_VERIFY_CERTS=false
+# Environment=ELASTICSEARCH_CA_CERTS=/path/to/ca.crt
+
+# Alternatively, use an environment file for sensitive data:
+# EnvironmentFile=/etc/elastic-alert-notificator/env
+
+# Security hardening (optional but recommended)
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/log/elastic-alert-notificator
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=elastic-alert-notificator
+
+[Install]
+WantedBy=multi-user.target
