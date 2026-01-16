@@ -188,7 +188,7 @@ class AlertPollerService:
             doc_id = alert["id"]
             source = alert["source"]
             message = source.get("message", "No message provided")
-            timestamp = source.get("timestamp", "Unknown time")
+            timestamp = source.get("@timestamp", "Unknown time")
             
             # Format the notification message
             notification_message = (
