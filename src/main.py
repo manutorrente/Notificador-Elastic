@@ -96,7 +96,7 @@ class AlertPollerService:
                     }
                 },
                 "sort": [
-                    {"timestamp": {"order": "asc"}}  # Process oldest first
+                    {"@timestamp": {"order": "asc"}}  # Process oldest first
                 ],
                 "size": 100  # Batch size
             }
