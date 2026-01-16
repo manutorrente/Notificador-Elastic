@@ -76,12 +76,9 @@ notificators = [
 # The script will poll these indexes for unprocessed alert documents
 # =============================================================================
 indexes_to_monitor = [
-    {
-        "index" : "alertas-impala",
-        "notificator_id" : "discord_test_channel"
-    },
+
     {
         "index" : "alertas-servicios-down",
-        "notificator_id" : "discord_test_channel"
+        "notificator_id" : "discord_only"
     }
 ]
