@@ -65,7 +65,7 @@ class DiscordChannelMessage(NotificationMethod):
         self.channel_id = int(channel_id)
         self.client_manager = DiscordClientManager()
     
-    def send_notification(self, message: str) -> None:
+    def send_notification(self, message: str, **config) -> None:
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self._send_message(message))

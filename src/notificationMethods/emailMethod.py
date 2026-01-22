@@ -117,7 +117,7 @@ class SMTPEmailMethod(NotificationMethod):
         self.subject_prefix = subject_prefix
 
     
-    def send_notification(self, message: str) -> None:
+    def send_notification(self, message: str, **config) -> None:
         """
         Send email notification via SMTP
         

@@ -11,10 +11,10 @@ class Notificator:
 
 
 
-    def notify(self, message: str) -> None:
+    def notify(self, message: str, **config) -> None:
         for method in self.notification_methods:
             try:
-                method.send_notification(message)
+                method.send_notification(message, **config)
                 logger.info(f"Notification sent via {method.id} for notificator {self.id}")
             except Exception as e:
                 logger.error(f"Error sending notification for {method.id} in notificator {self.id}: ")

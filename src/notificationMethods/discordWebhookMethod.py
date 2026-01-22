@@ -22,38 +22,69 @@ class DiscordWebhookMessage(NotificationMethod):
         super().__init__(id)
         self.webhook_url = webhook_url
     
-    def send_notification(self, message: str) -> None:
+    def send_notification(self, message: str, **config) -> None:
         """
         Sends a formatted embedded message to Discord using a webhook.
         
         Args:
             message: The message content to send
+            **config: Optional configuration from the document
+                - status: "up" to indicate service is back up (resolved)
+                - downtime: Pre-calculated downtime string (if available)
         """
         try:
             # Get current timestamp
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
+            # Check if this is a resolved/up status
+            status = config.get("status", "").lower()
+            is_resolved = status == "up"
+            
+            # Set appearance based on status
+            if is_resolved:
+                title = "✅ Elastic Alert Resolved"
+                color = 0x2ECC71  # Green color for resolved
+                status_field_name = "✅ Alert Status"
+                status_field_value = "Resolved"
+            else:
+                title = "🔔 Elastic Alert Notification"
+                color = 0xFF5733  # Orange-red color for alerts
+                status_field_name = "⚠️ Alert Status"
+                status_field_value = "Active"
+            
+            # Build fields list
+            fields = [
+                {
+                    "name": status_field_name,
+                    "value": status_field_value,
+                    "inline": True
+                },
+                {
+                    "name": "📊 Source",
+                    "value": "Elasticsearch",
+                    "inline": True
+                }
+            ]
+            
+            # Add downtime field if available and status is resolved
+            if is_resolved:
+                downtime = config.get("downtime")
+                if downtime:
+                    fields.append({
+                        "name": "⏱️ Downtime",
+                        "value": downtime,
+                        "inline": True
+                    })
+            
             # Prepare the embed with proper formatting
             embed = {
-                "title": "🔔 Elastic Alert Notification",
+                "title": title,
                 "description": message,
-                "color": 0xFF5733,  # Orange-red color for alerts
-                "timestamp": datetime.now().isoformat(),
+                "color": color,
                 "footer": {
                     "text": f"Notification ID: {self.id} • {timestamp}"
                 },
-                "fields": [
-                    {
-                        "name": "⚠️ Alert Status",
-                        "value": "Active",
-                        "inline": True
-                    },
-                    {
-                        "name": "📊 Source",
-                        "value": "Elasticsearch",
-                        "inline": True
-                    }
-                ]
+                "fields": fields
             }
             
             # Prepare the payload with the embed

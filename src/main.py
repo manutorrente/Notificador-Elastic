@@ -19,6 +19,7 @@ from elasticsearch.exceptions import ConnectionError, NotFoundError, TransportEr
 from conf import elasticsearch_config, indexes_to_monitor, polling_interval
 from notificators_setup import notificators
 from logger import logger
+from utils import calculate_downtime
 
 
 class AlertPollerService:
@@ -167,13 +168,7 @@ class AlertPollerService:
             int: Number of alerts successfully processed
         """
         index = index_config["index"]
-        notificator_id = index_config["notificator_id"]
-        
-        # Get the notificator
-        notificator = notificators.get(notificator_id)
-        if not notificator:
-            logger.error(f"Notificator '{notificator_id}' not found for index '{index}'")
-            return 0
+        default_notificator_id = index_config["notificator_id"]
         
         # Fetch unprocessed alerts
         alerts = self._fetch_unprocessed_alerts(index)
@@ -187,8 +182,31 @@ class AlertPollerService:
             
             doc_id = alert["id"]
             source = alert["source"]
+            
+            # Check for notificator override in the document, fallback to default
+            notificator_id = source.get("notificator_override", default_notificator_id)
+            
+            # Get the notificator
+            notificator = notificators.get(notificator_id)
+            if not notificator:
+                logger.error(f"Notificator '{notificator_id}' not found for alert '{doc_id}' in index '{index}'")
+                continue
+            
             message = source.get("message", "No message provided")
             timestamp = source.get("@timestamp", "Unknown time")
+            
+            # Extract config from document if present
+            alert_config = source.get("config", {})
+            
+            # Pre-calculate downtime if status is up and we have start/end times
+            if alert_config.get("status", "").lower() == "up":
+                alert_start = alert_config.get("alert_start")
+                alert_end = alert_config.get("alert_end")
+                if alert_start and alert_end:
+                    try:
+                        alert_config["downtime"] = calculate_downtime(alert_start, alert_end)
+                    except Exception as e:
+                        logger.warning(f"Failed to calculate downtime for alert '{doc_id}': {e}")
             
             # Format the notification message
             notification_message = (
@@ -198,9 +216,9 @@ class AlertPollerService:
             )
             
             try:
-                # Send notification
-                notificator.notify(notification_message)
-                logger.info(f"Notification sent for alert '{doc_id}' from index '{index}'")
+                # Send notification with config
+                notificator.notify(notification_message, **alert_config)
+                logger.info(f"Notification sent for alert '{doc_id}' from index '{index}' using notificator '{notificator_id}'")
                 
                 # Mark as processed
                 if self._mark_as_processed(alert["index"], doc_id):
