@@ -4,16 +4,27 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # =============================================================================
-# Elasticsearch Configuration
+# Elasticsearch Connections
 # =============================================================================
-elasticsearch_config = {
-    "host": os.getenv("ELASTICSEARCH_HOST", "localhost"),
-    "port": int(os.getenv("ELASTICSEARCH_PORT", "9200")),
-    "username": os.getenv("ELASTICSEARCH_USERNAME", "elastic"),
-    "password": os.getenv("ELASTICSEARCH_PASSWORD"),
-    "verify_certs": os.getenv("ELASTICSEARCH_VERIFY_CERTS", "false").lower() == "true",
-    "ca_certs": os.getenv("ELASTICSEARCH_CA_CERTS", None),
-    "timeout": 60
+elasticsearch_connections = {
+    "elastic_prod": {
+        "host": os.getenv("ELASTICSEARCH_PROD_HOST", "localhost"),
+        "port": int(os.getenv("ELASTICSEARCH_PROD_PORT", "9200")),
+        "username": os.getenv("ELASTICSEARCH_PROD_USERNAME", "elastic"),
+        "password": os.getenv("ELASTICSEARCH_PROD_PASSWORD"),
+        "verify_certs": os.getenv("ELASTICSEARCH_PROD_VERIFY_CERTS", "false").lower() == "true",
+        "ca_certs": os.getenv("ELASTICSEARCH_PROD_CA_CERTS", None),
+        "timeout": 60
+    },
+    "elastic_desa": {
+        "host": os.getenv("ELASTICSEARCH_DESA_HOST", "localhost"),
+        "port": int(os.getenv("ELASTICSEARCH_DESA_PORT", "9200")),
+        "username": os.getenv("ELASTICSEARCH_DESA_USERNAME", "elastic"),
+        "password": os.getenv("ELASTICSEARCH_DESA_PASSWORD"),
+        "verify_certs": os.getenv("ELASTICSEARCH_DESA_VERIFY_CERTS", "false").lower() == "true",
+        "ca_certs": os.getenv("ELASTICSEARCH_DESA_CA_CERTS", None),
+        "timeout": 60
+    }
 }
 
 # Polling interval in seconds
@@ -44,6 +55,13 @@ notification_methods = [
         "config": {
             "webhook_url": "https://discord.com/api/webhooks/1400908128102645932/ZW-R6ZucvgCF7FngTPF5Xj7pXVvP63OZy7POInCDtYgjgs1Ooghw6yBg-tZ3OUYplaMD"
         }
+    },
+    {
+        "id" : "DiscordDesaCDP",
+        "type" : "discordWebhook",
+        "config": {
+            "webhook_url": "https://discord.com/api/webhooks/1258131501204242594/XvU11MNXqypltTQFW92WuXR4xzt1tio8y1F7FhXDsYmgxM42-_EkoaNHXY75P97ww5ae"
+        }
     }
     
 ]
@@ -67,6 +85,10 @@ notificators = [
     {
         "id" : "discord_test_channel",
         "notification_methods": ["DiscordTestChannel"]
+    },
+    {
+        "id" : "discord_desa_cdp",
+        "notification_methods": ["DiscordDesaCDP"]
     }
 ]
 
@@ -79,6 +101,12 @@ indexes_to_monitor = [
 
     {
         "index" : "alertas-servicios-down",
-        "notificator_id" : "discord_only"
+        "notificator_id" : "discord_only",
+        "connection" : "elastic_prod"
+    },
+    {
+        "index" : "alertas-servicios-down",
+        "notificator_id" : "discord_desa_cdp",
+        "connection" : "elastic_desa"
     }
 ]

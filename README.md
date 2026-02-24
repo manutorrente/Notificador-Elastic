@@ -13,18 +13,95 @@ A polling-based notification service that monitors Elasticsearch indexes for ale
 
 Alert documents in Elasticsearch should have the following structure:
 
+### Minimal Document
+
 ```json
 {
     "processed": false,
-    "timestamp": "2026-01-14T10:30:00Z",
-    "message": "Alert message content here"
+    "@timestamp": "2026-01-22T10:30:00Z",
+    "message": "Critical: Database server is unreachable"
+}
+```
+
+### Full Document with All Options
+
+```json
+{
+    "processed": false,
+    "@timestamp": "2026-01-22T10:30:00Z",
+    "message": "Service X is back online after maintenance",
+    "notificator_override": "special_notificator",
+    "config": {
+        "status": "up",
+        "alert_start": "2026-01-22T08:00:00Z",
+        "alert_end": "2026-01-22T10:30:00Z"
+    }
+}
+```
+
+### Field Specifications
+
+- **`processed`** (required, boolean): Must be `false` for the service to pick up the alert. The service automatically sets this to `true` after processing.
+
+- **`@timestamp`** (recommended, string): ISO 8601 datetime indicating when the alert occurred. Used for sorting and display in notifications.
+
+- **`message`** (required, string): The alert message content that will be sent in the notification.
+
+- **`notificator_override`** (optional, string): Override the default notificator configured for the index. Must match a notificator ID from your configuration. Useful for routing specific alerts to different notification channels.
+
+- **`config`** (optional, object): Configuration object that gets passed to notification methods. Contents depend on the notification method being used.
+
+  - **`config.status`** (optional, string): Set to `"up"` to indicate the service has recovered. This changes the notification appearance (e.g., Discord shows green color, resolved status).
+  
+  - **`config.alert_start`** (optional, string): ISO 8601 datetime when the alert/incident started. Used with `alert_end` to calculate downtime.
+  
+  - **`config.alert_end`** (optional, string): ISO 8601 datetime when the alert/incident ended. Used with `alert_start` to calculate downtime. The downtime is automatically calculated and added to the config before sending to notification methods.
+
+### Document Examples
+
+#### Standard Alert (Service Down)
+
+```json
+{
+    "processed": false,
+    "@timestamp": "2026-01-22T14:15:00Z",
+    "message": "**CRITICAL**: Payment API is not responding\n\n**Affected Services**: Checkout, Subscriptions\n**Error Rate**: 100%"
+}
+```
+
+#### Recovery Alert with Downtime
+
+```json
+{
+    "processed": false,
+    "@timestamp": "2026-01-22T16:45:00Z",
+    "message": "**RESOLVED**: Payment API is back online\n\nAll systems are operational.",
+    "config": {
+        "status": "up",
+        "alert_start": "2026-01-22T14:15:00Z",
+        "alert_end": "2026-01-22T16:45:00Z"
+    }
+}
+```
+
+#### Alert with Custom Notificator
+
+```json
+{
+    "processed": false,
+    "@timestamp": "2026-01-22T09:00:00Z",
+    "message": "Security Alert: Unusual login pattern detected from IP 192.168.1.100",
+    "notificator_override": "security_team_notificator"
 }
 ```
 
 ## Features
 
-- **Multi-channel notifications**: Send notifications via Email (SMTP) and Discord (Webhook)
+- **Multi-channel notifications**: Send notifications via Email (SMTP), Discord (Webhook, Bot)
 - **Polling-based**: No need for Elastic Enterprise license
+- **Notificator override**: Documents can specify a custom notificator per alert
+- **Status-aware notifications**: Different styling for active alerts vs. resolved alerts
+- **Automatic downtime calculation**: Calculates and displays downtime for recovery alerts
 - **Graceful shutdown**: Handles SIGTERM/SIGINT for clean service stops
 - **Automatic reconnection**: Reconnects to Elasticsearch if connection is lost
 - **Systemd ready**: Designed to run as a Linux service

@@ -16,7 +16,7 @@ from typing import Optional
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import ConnectionError, NotFoundError, TransportError
 
-from conf import elasticsearch_config, indexes_to_monitor, polling_interval
+from conf import elasticsearch_connections, indexes_to_monitor, polling_interval
 from notificators_setup import notificators
 from logger import logger
 from utils import calculate_downtime
@@ -29,7 +29,7 @@ class AlertPollerService:
     
     def __init__(self):
         self.running = False
-        self.es_client: Optional[Elasticsearch] = None
+        self.es_clients: dict[str, Elasticsearch] = {}
         self._setup_signal_handlers()
     
     def _setup_signal_handlers(self):
@@ -43,47 +43,58 @@ class AlertPollerService:
         logger.info(f"Received {sig_name} signal. Initiating graceful shutdown...")
         self.running = False
     
-    def _connect_elasticsearch(self) -> bool:
+    def _connect_elasticsearch(self, connection_name: Optional[str] = None) -> bool:
         """
-        Establish connection to Elasticsearch.
+        Establish connection(s) to Elasticsearch.
+        
+        Args:
+            connection_name: If provided, connect only to this specific connection.
+                             If None, connect to all configured connections.
         
         Returns:
-            bool: True if connection successful, False otherwise
+            bool: True if all requested connections successful, False otherwise
         """
-        try:
-            # Build connection to Elasticsearch
-            self.es_client = Elasticsearch(
-                hosts=[{
-                    "host": elasticsearch_config["host"],
-                    "port": elasticsearch_config["port"],
-                    "scheme": "http"
-                }],
-                basic_auth=(elasticsearch_config["username"], elasticsearch_config["password"]),
-                verify_certs=elasticsearch_config["verify_certs"],
-                request_timeout=elasticsearch_config["timeout"]
-            )
-            
-            # Test connection
-            info = self.es_client.info()
-            logger.info(f"Successfully connected to Elasticsearch: {info['version']['number']}")
-            return True
-                
-        except Exception as e:
-            logger.error(f"Failed to connect to Elasticsearch: {e}")
-            logger.exception(e)
-            return False
+        targets = {connection_name: elasticsearch_connections[connection_name]} if connection_name else elasticsearch_connections
+        all_ok = True
+
+        for name, config in targets.items():
+            try:
+                client = Elasticsearch(
+                    hosts=[{
+                        "host": config["host"],
+                        "port": config["port"],
+                        "scheme": "http"
+                    }],
+                    basic_auth=(config["username"], config["password"]),
+                    verify_certs=config["verify_certs"],
+                    request_timeout=config["timeout"]
+                )
+
+                info = client.info()
+                logger.info(f"Successfully connected to Elasticsearch '{name}': {info['version']['number']}")
+                self.es_clients[name] = client
+
+            except Exception as e:
+                logger.error(f"Failed to connect to Elasticsearch '{name}': {e}")
+                logger.exception(e)
+                all_ok = False
+
+        return all_ok
     
-    def _fetch_unprocessed_alerts(self, index: str) -> list:
+    def _fetch_unprocessed_alerts(self, index: str, connection_name: str) -> list:
         """
         Fetch all unprocessed alerts from the specified index.
         
         Args:
             index: The Elasticsearch index to query
+            connection_name: The name of the Elasticsearch connection to use
             
         Returns:
             list: List of unprocessed alert documents with their IDs
         """
-        if not self.es_client:
+        es_client = self.es_clients.get(connection_name)
+        if not es_client:
+            logger.error(f"No Elasticsearch client for connection '{connection_name}'")
             return []
         
         try:
@@ -102,7 +113,7 @@ class AlertPollerService:
                 "size": 100  # Batch size
             }
             
-            response = self.es_client.search(index=index, body=query)
+            response = es_client.search(index=index, body=query)
             hits = response.get("hits", {}).get("hits", [])
             
             alerts = []
@@ -125,22 +136,25 @@ class AlertPollerService:
             logger.error(f"Error fetching alerts from index '{index}': {e}")
             return []
     
-    def _mark_as_processed(self, index: str, doc_id: str) -> bool:
+    def _mark_as_processed(self, index: str, doc_id: str, connection_name: str) -> bool:
         """
         Mark an alert document as processed.
         
         Args:
             index: The Elasticsearch index
             doc_id: The document ID
+            connection_name: The name of the Elasticsearch connection to use
             
         Returns:
             bool: True if update successful, False otherwise
         """
-        if not self.es_client:
+        es_client = self.es_clients.get(connection_name)
+        if not es_client:
+            logger.error(f"No Elasticsearch client for connection '{connection_name}'")
             return False
         
         try:
-            self.es_client.update(
+            es_client.update(
                 index=index,
                 id=doc_id,
                 body={
@@ -169,9 +183,10 @@ class AlertPollerService:
         """
         index = index_config["index"]
         default_notificator_id = index_config["notificator_id"]
+        connection_name = index_config["connection"]
         
         # Fetch unprocessed alerts
-        alerts = self._fetch_unprocessed_alerts(index)
+        alerts = self._fetch_unprocessed_alerts(index, connection_name)
         
         processed_count = 0
         for alert in alerts:
@@ -221,7 +236,7 @@ class AlertPollerService:
                 logger.info(f"Notification sent for alert '{doc_id}' from index '{index}' using notificator '{notificator_id}'")
                 
                 # Mark as processed
-                if self._mark_as_processed(alert["index"], doc_id):
+                if self._mark_as_processed(alert["index"], doc_id, connection_name):
                     processed_count += 1
                     
             except Exception as e:
@@ -238,23 +253,25 @@ class AlertPollerService:
         logger.info("Starting Alert Poller Service...")
         logger.info(f"Polling interval: {polling_interval} seconds")
         logger.info(f"Monitoring {len(indexes_to_monitor)} index(es)")
+        logger.info(f"Configured Elasticsearch connections: {', '.join(elasticsearch_connections.keys())}")
         
-        # Connect to Elasticsearch
+        # Connect to all Elasticsearch instances
         if not self._connect_elasticsearch():
-            logger.error("Failed to establish initial connection to Elasticsearch. Exiting.")
+            logger.error("Failed to establish initial connection to one or more Elasticsearch instances. Exiting.")
             sys.exit(1)
         
         self.running = True
         
         while self.running:
             try:
-                # Check Elasticsearch connection
-                if not self.es_client or not self.es_client.ping():
-                    logger.warning("Lost connection to Elasticsearch. Attempting to reconnect...")
-                    if not self._connect_elasticsearch():
-                        logger.error("Failed to reconnect. Will retry on next poll cycle.")
-                        time.sleep(polling_interval)
-                        continue
+                # Check Elasticsearch connections and reconnect if needed
+                for conn_name, client in list(self.es_clients.items()):
+                    try:
+                        if not client.ping():
+                            raise ConnectionError(f"Ping failed for '{conn_name}'")
+                    except Exception:
+                        logger.warning(f"Lost connection to Elasticsearch '{conn_name}'. Attempting to reconnect...")
+                        self._connect_elasticsearch(conn_name)
                 
                 # Process alerts for each configured index
                 total_processed = 0
@@ -286,9 +303,12 @@ class AlertPollerService:
         
         # Cleanup
         logger.info("Shutting down Alert Poller Service...")
-        if self.es_client:
-            self.es_client.close()
-            logger.info("Elasticsearch connection closed")
+        for conn_name, client in self.es_clients.items():
+            try:
+                client.close()
+                logger.info(f"Elasticsearch connection '{conn_name}' closed")
+            except Exception as e:
+                logger.error(f"Error closing Elasticsearch connection '{conn_name}': {e}")
         
         logger.info("Alert Poller Service stopped gracefully")
 
