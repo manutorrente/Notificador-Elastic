@@ -127,14 +127,132 @@ class SMTPEmailMethod(NotificationMethod):
         self.subject_prefix = subject_prefix
         self.ignore_status_up = ignore_status_up
 
+    def _parse_message(self, message: str) -> tuple[str, str, str]:
+        """
+        Parse the formatted message to extract index, timestamp, and alert message.
+        Expected format: "**Alert from index: {index}**\n**Time:** {timestamp}\n\n{message}"
+        
+        Returns:
+            Tuple of (index, timestamp, alert_message)
+        """
+        lines = message.split("\n")
+        index = "Unknown"
+        timestamp = "Unknown"
+        alert_message = message
+        
+        # Try to extract index from first line
+        if len(lines) > 0 and "Alert from index:" in lines[0]:
+            try:
+                index = lines[0].replace("**Alert from index: ", "").replace("**", "").strip()
+            except:
+                pass
+        
+        # Try to extract timestamp from second line
+        if len(lines) > 1 and "Time:" in lines[1]:
+            try:
+                timestamp = lines[1].replace("**Time:** ", "").replace("**", "").strip()
+            except:
+                pass
+        
+        # Extract the actual alert message (everything after the header lines)
+        if len(lines) > 2:
+            alert_message = "\n".join(lines[2:]).strip()
+        
+        return index, timestamp, alert_message
     
+    def _build_html_email(self, index: str, timestamp: str, alert_message: str, **config) -> str:
+        """
+        Build a formatted HTML email body.
+        
+        Args:
+            index: The Elasticsearch index name
+            timestamp: Alert timestamp
+            alert_message: The main alert message
+            **config: Additional configuration (status, downtime, etc.)
+        
+        Returns:
+            HTML string for the email body
+        """
+        status = config.get("status", "").lower()
+        downtime = config.get("downtime", "")
+        
+        # Determine status display
+        if status == "up":
+            status_label = "Resolved"
+            status_color = "#2ECC71"  # Green
+            status_icon = "✓"
+        else:
+            status_label = "Active"
+            status_color = "#FF5733"  # Orange-red
+            status_icon = "!"
+        
+        html = f"""
+        <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                    .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 8px 8px 0 0; }}
+                    .header h1 {{ margin: 0; font-size: 24px; font-weight: 600; }}
+                    .content {{ background: #f9f9f9; padding: 25px; border-radius: 0 0 8px 8px; }}
+                    .info-row {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0; }}
+                    .info-block {{ }}
+                    .info-label {{ font-weight: 600; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }}
+                    .info-value {{ font-size: 14px; color: #333; margin-top: 5px; font-family: 'Monaco', 'Courier New', monospace; }}
+                    .status-badge {{ display: inline-block; background: {status_color}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }}
+                    .message-section {{ background: white; padding: 20px; border-radius: 6px; border-left: 4px solid #667eea; margin-top: 20px; }}
+                    .message-section h3 {{ margin-top: 0; color: #333; }}
+                    .message-text {{ background: #f5f5f5; padding: 15px; border-radius: 4px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }}
+                    .footer {{ text-align: center; color: #999; font-size: 12px; margin-top: 20px; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>{status_icon} Elasticsearch Alert Notification</h1>
+                    </div>
+                    <div class="content">
+                        <div class="info-row">
+                            <div class="info-block">
+                                <div class="info-label">Alert Status</div>
+                                <div><span class="status-badge">{status_label}</span></div>
+                            </div>
+                            <div class="info-block">
+                                <div class="info-label">Source Index</div>
+                                <div class="info-value">{index}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-row">
+                            <div class="info-block">
+                                <div class="info-label">Timestamp</div>
+                                <div class="info-value">{timestamp}</div>
+                            </div>
+                            {f'<div class="info-block"><div class="info-label">Downtime</div><div class="info-value">{downtime}</div></div>' if downtime else ''}
+                        </div>
+                        
+                        <div class="message-section">
+                            <h3>Alert Message</h3>
+                            <div class="message-text">{alert_message}</div>
+                        </div>
+                    </div>
+                    <div class="footer">
+                        <p>This is an automated alert from the Elasticsearch Alert Notificator Service</p>
+                    </div>
+                </div>
+            </body>
+        </html>
+        """
+        return html
+
     def send_notification(self, message: str, **config) -> None:
         """
         Send email notification via SMTP
         
         Args:
-            message: The notification message to send
-            **config: Additional configuration including alert status
+            message: The formatted notification message to send
+            **config: Additional configuration including alert status, downtime, etc.
         """
         # Check if we should ignore this alert based on status
         if self.ignore_status_up and config.get("status", "").lower() == "up":
@@ -142,17 +260,24 @@ class SMTPEmailMethod(NotificationMethod):
             return
         
         try:
-            # Take subject from config object, else use truncated message content as subject.
+            # Parse the message to extract components
+            index, timestamp, alert_message = self._parse_message(message)
+            
+            # Build HTML email body
+            html_body = self._build_html_email(index, timestamp, alert_message, **config)
+            
+            # Create subject - use first line of alert message or config subject
             config_subject = config.get("subject")
-            message_trunc = message[:50] + "..." if len(message) > 50 else message
-            subject = config_subject if config_subject is not None else message_trunc
-            subject = f"{self.subject_prefix} " + subject.replace("\n", " ")
+            subject_text = config_subject if config_subject else alert_message.split("\n")[0][:50]
+            if not config_subject and len(alert_message.split("\n")[0]) > 50:
+                subject_text += "..."
+            subject = f"{self.subject_prefix} {subject_text.replace(chr(10), ' ')}"
 
             self.smtp_connection.send_email(
                 subject=subject,
-                body=message,
+                body=html_body,
                 recipient_emails=self.to_emails,
-                html_type=False,
+                html_type=True,
                 quit_after_send=True
             )
             
