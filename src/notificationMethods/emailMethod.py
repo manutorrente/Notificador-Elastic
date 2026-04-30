@@ -142,7 +142,12 @@ class SMTPEmailMethod(NotificationMethod):
             return
         
         try:
-            subject = f"{self.subject_prefix} {message[:50]}..." if len(message) > 50 else f"{self.subject_prefix} {message}"
+            # Take subject from config object, else use truncated message content as subject.
+            config_subject = config.get("subject")
+            message_trunc = message[:50] + "..." if len(message) > 50 else message
+            subject = config_subject if config_subject is not None else message_trunc
+            subject = f"{self.subject_prefix} " + subject.replace("\n", " ")
+
             self.smtp_connection.send_email(
                 subject=subject,
                 body=message,
