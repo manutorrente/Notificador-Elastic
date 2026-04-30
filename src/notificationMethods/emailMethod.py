@@ -1,4 +1,3 @@
-
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -15,7 +14,7 @@ load_dotenv(override=True)
 logger = logging.getLogger(__name__)
 
 class SMTPConnection:
-    def __init__(self, host, username, password, sender_email, receiver_emails: list[str] | None  = None, port=587):
+    def __init__(self, host, username, password, sender_email, receiver_emails: list[str] | None  = None, port=587, use_tls=False):
         self.host = host
         self.port = port
         self.username = username
@@ -24,13 +23,21 @@ class SMTPConnection:
         self.receiver_emails = receiver_emails
         self.server = None
         self.retries = 0
+        self.use_tls = use_tls # Added parameter to control TLS
         
 
     def initialize_server(self):
         try:
             self.server = smtplib.SMTP(self.host, self.port)
-            self.server.starttls()
-            self.server.login(self.username, self.password)
+            
+            # Conditionally start TLS based on the flag
+            if self.use_tls:
+                self.server.starttls()
+                
+            # Only attempt login if credentials actually exist
+            if self.username and self.password:
+                self.server.login(self.username, self.password)
+                
         except Exception as e:
             logger.error(f"Failed to initialize SMTP server: {e}")
             logger.error(traceback.format_exc())
@@ -88,6 +95,7 @@ smtp_conn = SMTPConnection(
     username=os.getenv("SMTP_USERNAME"),
     password=os.getenv("SMTP_PASSWORD"),
     sender_email="operativagobdato@gbsj.com.ar",
+    use_tls=False # Explicitly setting it to False here, though it is now the default
 )
 
 class SMTPEmailMethod(NotificationMethod):
@@ -101,20 +109,23 @@ class SMTPEmailMethod(NotificationMethod):
         to_emails: List[str],
         subject_prefix: str = "[Notification]",
         smtp_connection: SMTPConnection = smtp_conn,
+        ignore_status_up: bool = True,
     ):
         """
         Initialize SMTP email notification method
         
         Args:
-            smtp_connection: SMTP connection object
+            id: Notification method ID
             to_emails: List of recipient email addresses
-            use_tls: Whether to use TLS encryption (default: True)
             subject_prefix: Prefix for email subject line
+            smtp_connection: SMTP connection object
+            ignore_status_up: If True, ignore alerts with status='up' (default: True)
         """
         super().__init__(id)
         self.smtp_connection = smtp_connection
         self.to_emails = to_emails
         self.subject_prefix = subject_prefix
+        self.ignore_status_up = ignore_status_up
 
     
     def send_notification(self, message: str, **config) -> None:
@@ -123,7 +134,13 @@ class SMTPEmailMethod(NotificationMethod):
         
         Args:
             message: The notification message to send
+            **config: Additional configuration including alert status
         """
+        # Check if we should ignore this alert based on status
+        if self.ignore_status_up and config.get("status", "").lower() == "up":
+            logger.info(f"Ignoring email notification: alert status is 'up' and ignore_status_up is enabled")
+            return
+        
         try:
             subject = f"{self.subject_prefix} {message[:50]}..." if len(message) > 50 else f"{self.subject_prefix} {message}"
             self.smtp_connection.send_email(

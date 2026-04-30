@@ -39,7 +39,17 @@ notification_methods = [
         "type" : "emailSMTP",
         "config": {
             "to_emails": ["mtorrente@dblandit.com"],
-            "subject_prefix": "[Test]"
+            "subject_prefix": "[Test]",
+            "ignore_status_up": True  # Ignore alerts with status='up' (default)
+        }
+    },
+    {
+        "id" : "MailSoporteL1",
+        "type" : "emailSMTP",
+        "config": {
+            "to_emails": [" soporte-l1-grupo-petersen@dblandit.com"],
+            "subject_prefix": "[Alerta de Servicio]",
+            "ignore_status_up": True  # Ignore alerts with status='up' (default)
         }
     },
     {
@@ -47,6 +57,20 @@ notification_methods = [
         "type": "discordWebhook",
         "config": {
             "webhook_url": "https://discord.com/api/webhooks/1365429107671961741/uRgS3hwUdHGI3LXg3cMD8PC6iAGoxUZ0xQ9ur8wR_u5JNipkDnQ24ymHwoxZFS1TELvQ"
+        }
+    },
+    {
+        "id" : "DiscordPetersenLivy",
+        "type": "discordWebhook",
+        "config": {
+            "webhook_url": "https://discord.com/api/webhooks/1499503506027974827/iDspwNLU1FzmbrGQe4y6qPt4NtvEC74iRTfiEfx0pMV7ea_ZLve7RAADKQ4UCR8XsNR-"
+        }
+    },
+    {
+        "id" : "DiscordPetersenImpala",
+        "type": "discordWebhook",
+        "config": {
+            "webhook_url": "https://discord.com/api/webhooks/1499503792922689731/EW9Yk_wJnNCuUZ5TS1PghHheR9pe-DRj2yInxVwMXJw9vMzs69nIWyAegX1EtA42oy14"
         }
     },
     {
@@ -89,6 +113,14 @@ notificators = [
     {
         "id" : "discord_desa_cdp",
         "notification_methods": ["DiscordDesaCDP"]
+    },
+    {
+        "id" : "email_and_discord_impala",
+        "notification_methods": ["MailSoporteL1", "DiscordPetersenImpala"]
+    },
+    {
+        "id" : "email_and_discord_livy",
+        "notification_methods": ["MailSoporteL1", "DiscordPetersenLivy"]
     }
 ]
 
@@ -108,5 +140,15 @@ indexes_to_monitor = [
         "index" : "alertas-servicios-down",
         "notificator_id" : "discord_desa_cdp",
         "connection" : "elastic_desa"
+    },
+    {
+        "index" : "alertas-livy",
+        "notificator_id" : "email_and_discord_livy",
+        "connection" : "elastic_prod"
+    },
+    {
+        "index" : "alertas-impala",
+        "notificator_id" : "email_and_discord_impala",
+        "connection" : "elastic_prod"
     }
 ]

@@ -58,6 +58,13 @@ class AlertPollerService:
         all_ok = True
 
         for name, config in targets.items():
+            # Validate required fields before attempting connection
+            missing = [k for k in ("host", "username", "password") if not config.get(k)]
+            if missing:
+                logger.error(f"Elasticsearch '{name}' is missing required config: {', '.join(missing)}. Skipping.")
+                all_ok = False
+                continue
+
             try:
                 client = Elasticsearch(
                     hosts=[{
