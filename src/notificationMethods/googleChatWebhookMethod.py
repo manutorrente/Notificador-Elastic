@@ -42,21 +42,23 @@ class GoogleChatWebhookMessage(NotificationMethod):
             
             # Set appearance and color based on status
             if is_resolved:
-                default_title = "✅ Elastic Alert Resolved"
+                emoji = "✅"
+                default_text = "Elastic Alert Resolved"
                 status_text = "Resolved"
                 color_hex = "#34A853"  # Google Green
             else:
-                default_title = "🔔 Elastic Alert Notification"
+                emoji = "🔔"
+                default_text = "Elastic Alert Notification"
                 status_text = "Active"
                 color_hex = "#EA4335"  # Google Red
             
-            # Handle custom title and subtitle logic
+            # Handle custom title and subtitle logic, keeping the emoji on the title
             custom_title = config.get("title")
             if custom_title:
-                card_title = custom_title
-                card_subtitle = default_title
+                card_title = f"{emoji} {custom_title}"
+                card_subtitle = default_text
             else:
-                card_title = default_title
+                card_title = f"{emoji} {default_text}"
                 card_subtitle = None
             
             # Build Header (applying the color here since Google Chat lacks a global card color)

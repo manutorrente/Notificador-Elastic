@@ -27,15 +27,15 @@ class DiscordWebhookMessage(NotificationMethod):
         Sends a formatted embedded message to Discord using a webhook.
         
         Args:
-            message: The structured notification content to send
+            message: The structured NotificationMessage dataclass to send
             **config: Optional configuration from the document
                 - status: "up" to indicate service is back up (resolved)
                 - downtime: Pre-calculated downtime string (if available)
                 - title: Custom title for the alert
         """
         try:
-            # Get current timestamp
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Get current timestamp for the notification processing time
+            current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             # Check if this is a resolved/up status
             status = config.get("status", "").lower()
@@ -43,25 +43,35 @@ class DiscordWebhookMessage(NotificationMethod):
             
             # Set appearance based on status
             if is_resolved:
-                default_title = "✅ Elastic Alert Resolved"
+                emoji = "✅"
+                default_text = "Elastic Alert Resolved"
                 color = 0x2ECC71  # Green color for resolved
                 status_field_name = "✅ Alert Status"
                 status_field_value = "Resolved"
             else:
-                default_title = "🔔 Elastic Alert Notification"
+                emoji = "🔔"
+                default_text = "Elastic Alert Notification"
                 color = 0xFF5733  # Orange-red color for alerts
                 status_field_name = "⚠️ Alert Status"
                 status_field_value = "Active"
             
-            # Handle custom title and subtitle fallback
+            # Handle custom title and subtitle logic, keeping the emoji on the title
             custom_title = config.get("title")
             if custom_title:
-                embed_title = custom_title
-                # Discord lacks a native 'subtitle', so we bold the default title at the top of the description
-                embed_description = f"**{default_title}**\n\n{message.as_text()}"
+                embed_title = f"{emoji} {custom_title}"
+                embed_subtitle = default_text
             else:
-                embed_title = default_title
-                embed_description = message.as_text()
+                embed_title = f"{emoji} {default_text}"
+                embed_subtitle = None
+                
+            # Build the main body text using the separated dataclass fields
+            body_text = f"**Time:** {message.timestamp}\n\n{message.message}"
+            
+            # Discord lacks a native 'subtitle', so if a subtitle exists, bold it at the top of the description
+            if embed_subtitle:
+                embed_description = f"**{embed_subtitle}**\n\n{body_text}"
+            else:
+                embed_description = body_text
             
             # Build fields list
             fields = [
@@ -87,13 +97,16 @@ class DiscordWebhookMessage(NotificationMethod):
                         "inline": True
                     })
             
+            # Combine the ID, timestamp, and index into the native footer
+            footer_text = f"Notification ID: {self.id} • {current_timestamp}\nAlert from index: {message.index}"
+            
             # Prepare the embed with proper formatting
             embed = {
                 "title": embed_title,
                 "description": embed_description,
                 "color": color,
                 "footer": {
-                    "text": f"Notification ID: {self.id} • {timestamp}"
+                    "text": footer_text
                 },
                 "fields": fields
             }
