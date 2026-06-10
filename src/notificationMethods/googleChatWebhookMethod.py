@@ -69,7 +69,7 @@ class GoogleChatWebhookMessage(NotificationMethod):
                 header["subtitle"] = card_subtitle
 
             # Build the main body text using the separated dataclass fields
-            main_message = f"<b>Time:</b> {message.timestamp}<br><br>{message.message}"
+            main_message = f"<b>Time:</b> {message.timestamp}<br>{message.message}"
 
             # Build the widgets list for the primary section
             main_widgets = [

@@ -65,7 +65,7 @@ class DiscordWebhookMessage(NotificationMethod):
                 embed_subtitle = None
                 
             # Build the main body text using the separated dataclass fields
-            body_text = f"**Time:** {message.timestamp}\n\n{message.message}"
+            body_text = f"**Time:** {message.timestamp}\n{message.message}"
             
             # Discord lacks a native 'subtitle', so if a subtitle exists, bold it at the top of the description
             if embed_subtitle:
