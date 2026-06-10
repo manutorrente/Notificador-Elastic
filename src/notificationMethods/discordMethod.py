@@ -1,4 +1,4 @@
-from notificationMethods.notificationMethod import NotificationMethod
+from notificationMethods.notificationMethod import NotificationMethod, NotificationMessage
 import discord
 import os
 from dotenv import load_dotenv
@@ -65,12 +65,12 @@ class DiscordChannelMessage(NotificationMethod):
         self.channel_id = int(channel_id)
         self.client_manager = DiscordClientManager()
     
-    def send_notification(self, message: str, **config) -> None:
+    def send_notification(self, message: NotificationMessage, **config) -> None:
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self._send_message(message))
         except RuntimeError:
             asyncio.run(self._send_message(message))
     
-    async def _send_message(self, message: str) -> None:
-        await self.client_manager.send_to_channel(self.channel_id, message)
+    async def _send_message(self, message: NotificationMessage) -> None:
+        await self.client_manager.send_to_channel(self.channel_id, message.as_text())

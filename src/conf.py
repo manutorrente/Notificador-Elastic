@@ -131,7 +131,7 @@ notificators = [
     },
     {
         "id" : "google_chat_test",
-        "notification_methods": ["GoogleChatTest"]
+        "notification_methods": ["GoogleChatTest", "DiscordPetersenLivy"]
     }
 ]
 

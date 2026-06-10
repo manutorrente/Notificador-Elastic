@@ -1,4 +1,4 @@
-from notificationMethods.notificationMethod import NotificationMethod
+from notificationMethods.notificationMethod import NotificationMethod, NotificationMessage
 import requests
 import logging
 from datetime import datetime
@@ -22,12 +22,12 @@ class DiscordWebhookMessage(NotificationMethod):
         super().__init__(id)
         self.webhook_url = webhook_url
     
-    def send_notification(self, message: str, **config) -> None:
+    def send_notification(self, message: NotificationMessage, **config) -> None:
         """
         Sends a formatted embedded message to Discord using a webhook.
         
         Args:
-            message: The message content to send
+            message: The structured notification content to send
             **config: Optional configuration from the document
                 - status: "up" to indicate service is back up (resolved)
                 - downtime: Pre-calculated downtime string (if available)
@@ -58,10 +58,10 @@ class DiscordWebhookMessage(NotificationMethod):
             if custom_title:
                 embed_title = custom_title
                 # Discord lacks a native 'subtitle', so we bold the default title at the top of the description
-                embed_description = f"**{default_title}**\n\n{message}"
+                embed_description = f"**{default_title}**\n\n{message.as_text()}"
             else:
                 embed_title = default_title
-                embed_description = message
+                embed_description = message.as_text()
             
             # Build fields list
             fields = [

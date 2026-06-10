@@ -3,7 +3,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import List
 import logging
-from .notificationMethod import NotificationMethod
+from .notificationMethod import NotificationMethod, NotificationMessage
 import traceback
 import os
 from dotenv import load_dotenv
@@ -75,7 +75,7 @@ class SMTPConnection:
 
             self.server.sendmail(self.sender_email, recipient_emails, msg.as_string())
             self.retries = 0
-        except Exception as e:
+        except Exception:
             logger.error("Error sending email")
             logger.error(traceback.format_exc())
             if self.retries == 0:
@@ -127,39 +127,6 @@ class SMTPEmailMethod(NotificationMethod):
         self.subject_prefix = subject_prefix
         self.ignore_status_up = ignore_status_up
 
-    def _parse_message(self, message: str) -> tuple[str, str, str]:
-        """
-        Parse the formatted message to extract index, timestamp, and alert message.
-        Expected format: "**Alert from index: {index}**\n**Time:** {timestamp}\n\n{message}"
-        
-        Returns:
-            Tuple of (index, timestamp, alert_message)
-        """
-        lines = message.split("\n")
-        index = "Unknown"
-        timestamp = "Unknown"
-        alert_message = message
-        
-        # Try to extract index from first line
-        if len(lines) > 0 and "Alert from index:" in lines[0]:
-            try:
-                index = lines[0].replace("**Alert from index: ", "").replace("**", "").strip()
-            except:
-                pass
-        
-        # Try to extract timestamp from second line
-        if len(lines) > 1 and "Time:" in lines[1]:
-            try:
-                timestamp = lines[1].replace("**Time:** ", "").replace("**", "").strip()
-            except:
-                pass
-        
-        # Extract the actual alert message (everything after the header lines)
-        if len(lines) > 2:
-            alert_message = "\n".join(lines[2:]).strip()
-        
-        return index, timestamp, alert_message
-    
     def _build_html_email(self, index: str, timestamp: str, alert_message: str, **config) -> str:
         """
         Build a formatted HTML email body.
@@ -246,22 +213,23 @@ class SMTPEmailMethod(NotificationMethod):
         """
         return html
 
-    def send_notification(self, message: str, **config) -> None:
+    def send_notification(self, message: NotificationMessage, **config) -> None:
         """
         Send email notification via SMTP
         
         Args:
-            message: The formatted notification message to send
+            message: The structured notification message to send
             **config: Additional configuration including alert status, downtime, etc.
         """
         # Check if we should ignore this alert based on status
         if self.ignore_status_up and config.get("status", "").lower() == "up":
-            logger.info(f"Ignoring email notification: alert status is 'up' and ignore_status_up is enabled")
+            logger.info("Ignoring email notification: alert status is 'up' and ignore_status_up is enabled")
             return
         
         try:
-            # Parse the message to extract components
-            index, timestamp, alert_message = self._parse_message(message)
+            index = message.index
+            timestamp = message.timestamp
+            alert_message = message.message
             
             # Build HTML email body
             html_body = self._build_html_email(index, timestamp, alert_message, **config)

@@ -1,4 +1,4 @@
-from notificationMethods.notificationMethod import NotificationMethod
+from notificationMethods.notificationMethod import NotificationMethod, NotificationMessage
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,7 +11,7 @@ class Notificator:
 
 
 
-    def notify(self, message: str, **config) -> None:
+    def notify(self, message: NotificationMessage, **config) -> None:
         for method in self.notification_methods:
             try:
                 method.send_notification(message, **config)

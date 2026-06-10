@@ -18,6 +18,7 @@ from elasticsearch.exceptions import ConnectionError, NotFoundError, TransportEr
 
 from conf import elasticsearch_connections, indexes_to_monitor, polling_interval
 from notificators_setup import notificators
+from notificationMethods.notificationMethod import NotificationMessage
 from logger import logger
 from utils import calculate_downtime
 
@@ -230,11 +231,11 @@ class AlertPollerService:
                     except Exception as e:
                         logger.warning(f"Failed to calculate downtime for alert '{doc_id}': {e}")
             
-            # Format the notification message
-            notification_message = (
-                f"**Time:** {timestamp}\n"
-                f"{message}\n\n"
-                f"Alert from index: {index}"
+            # Keep the notification structured so each notifier can render it differently.
+            notification_message = NotificationMessage(
+                timestamp=timestamp,
+                message=message,
+                index=index,
             )
             
             try:
