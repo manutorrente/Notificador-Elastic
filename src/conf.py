@@ -86,6 +86,13 @@ notification_methods = [
         "config": {
             "webhook_url": "https://discord.com/api/webhooks/1258131501204242594/XvU11MNXqypltTQFW92WuXR4xzt1tio8y1F7FhXDsYmgxM42-_EkoaNHXY75P97ww5ae"
         }
+    },
+    {
+        "id" : "GoogleChatTest",
+        "type" : "googleChatWebhook",
+        "config": {
+            "webhook_url": "https://chat.googleapis.com/v1/spaces/AAQAl1_Z46w/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=vmmMicu-fXsPcljWv717JLxCuv8UrMgASFE1x6bfCnM"
+        }
     }
     
 ]
@@ -121,6 +128,10 @@ notificators = [
     {
         "id" : "email_and_discord_livy",
         "notification_methods": ["MailSoporteL1", "DiscordPetersenLivy"]
+    },
+    {
+        "id" : "google_chat_test",
+        "notification_methods": ["GoogleChatTest"]
     }
 ]
 
@@ -149,6 +160,11 @@ indexes_to_monitor = [
     {
         "index" : "alertas-impala",
         "notificator_id" : "email_and_discord_impala",
+        "connection" : "elastic_prod"
+    },
+    {
+        "index" : "alertas-test",
+        "notificator_id" : "google_chat_test",
         "connection" : "elastic_prod"
     }
 ]

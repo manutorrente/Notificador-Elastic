@@ -31,6 +31,7 @@ class DiscordWebhookMessage(NotificationMethod):
             **config: Optional configuration from the document
                 - status: "up" to indicate service is back up (resolved)
                 - downtime: Pre-calculated downtime string (if available)
+                - title: Custom title for the alert
         """
         try:
             # Get current timestamp
@@ -42,15 +43,25 @@ class DiscordWebhookMessage(NotificationMethod):
             
             # Set appearance based on status
             if is_resolved:
-                title = "✅ Elastic Alert Resolved"
+                default_title = "✅ Elastic Alert Resolved"
                 color = 0x2ECC71  # Green color for resolved
                 status_field_name = "✅ Alert Status"
                 status_field_value = "Resolved"
             else:
-                title = "🔔 Elastic Alert Notification"
+                default_title = "🔔 Elastic Alert Notification"
                 color = 0xFF5733  # Orange-red color for alerts
                 status_field_name = "⚠️ Alert Status"
                 status_field_value = "Active"
+            
+            # Handle custom title and subtitle fallback
+            custom_title = config.get("title")
+            if custom_title:
+                embed_title = custom_title
+                # Discord lacks a native 'subtitle', so we bold the default title at the top of the description
+                embed_description = f"**{default_title}**\n\n{message}"
+            else:
+                embed_title = default_title
+                embed_description = message
             
             # Build fields list
             fields = [
@@ -78,8 +89,8 @@ class DiscordWebhookMessage(NotificationMethod):
             
             # Prepare the embed with proper formatting
             embed = {
-                "title": title,
-                "description": message,
+                "title": embed_title,
+                "description": embed_description,
                 "color": color,
                 "footer": {
                     "text": f"Notification ID: {self.id} • {timestamp}"
@@ -114,4 +125,3 @@ class DiscordWebhookMessage(NotificationMethod):
             logger.error(f"Failed to send Discord webhook message (ID: {self.id}): {e}")
         except Exception as e:
             logger.error(f"Unexpected error sending Discord webhook message (ID: {self.id}): {e}")
-    

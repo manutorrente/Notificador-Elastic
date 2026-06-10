@@ -232,9 +232,9 @@ class AlertPollerService:
             
             # Format the notification message
             notification_message = (
-                f"**Alert from index: {index}**\n"
-                f"**Time:** {timestamp}\n\n"
-                f"{message}"
+                f"**Time:** {timestamp}\n"
+                f"{message}\n\n"
+                f"Alert from index: {index}"
             )
             
             try:

@@ -2,6 +2,7 @@ from notificator import Notificator
 from notificationMethods.emailMethod import SMTPEmailMethod, smtp_conn
 from notificationMethods.discordMethod import DiscordChannelMessage
 from notificationMethods.discordWebhookMethod import DiscordWebhookMessage
+from notificationMethods.googleChatWebhookMethod import GoogleChatWebhookMessage
 from conf import notification_methods as notif_methods_config, notificators as notificators_config
 import os
 import logging 
@@ -13,8 +14,9 @@ notification_method_instances = {}
 notification_method_type_mapping = {
     "emailSMTP": SMTPEmailMethod,
     "discordWebhook": DiscordWebhookMessage,
-    "discordBot": DiscordChannelMessage
-    
+    "discordBot": DiscordChannelMessage,
+    "googleChatWebhook": GoogleChatWebhookMessage
+
 }
 
 for method_config in notif_methods_config:
