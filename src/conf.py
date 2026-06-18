@@ -111,7 +111,7 @@ notificators = [
     },
     {
         "id" : "discord_only",
-        "notification_methods": ["DiscordPetersenServer"]
+        "notification_methods": ["DiscordPetersenServer",  "GoogleChatTest"]
     },
     {
         "id" : "discord_test_channel",
@@ -123,11 +123,11 @@ notificators = [
     },
     {
         "id" : "email_and_discord_impala",
-        "notification_methods": ["MailSoporteL1", "DiscordPetersenImpala"]
+        "notification_methods": ["MailSoporteL1", "DiscordPetersenImpala", "GoogleChatTest"]
     },
     {
         "id" : "email_and_discord_livy",
-        "notification_methods": ["MailSoporteL1", "DiscordPetersenLivy"]
+        "notification_methods": ["MailSoporteL1", "DiscordPetersenLivy", "GoogleChatTest"]
     },
     {
         "id" : "google_chat_test",
