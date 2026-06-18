@@ -17,10 +17,11 @@ class GoogleChatWebhookMessage(NotificationMethod):
     5. Copy the generated webhook URL.
     """
     
-    def __init__(self, id: str, webhook_url: str):
+    def __init__(self, id: str, webhook_url: str, admit_status_up: bool = True):
         super().__init__(id)
         self.webhook_url = webhook_url
-    
+        self.admit_status_up = admit_status_up
+
     def send_notification(self, message: NotificationMessage, **config) -> None:
         """
         Sends a formatted Card message to Google Chat using a webhook.
@@ -33,6 +34,11 @@ class GoogleChatWebhookMessage(NotificationMethod):
                 - title: Custom title for the alert
         """
         try:
+            
+            if not self.admit_status_up and config.get("status", "").lower() == "up":
+                logger.info(f"Skipping 'up' status notification for Google Chat (ID: {self.id})")
+                return
+            
             # Get current timestamp for the notification processing time
             current_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             

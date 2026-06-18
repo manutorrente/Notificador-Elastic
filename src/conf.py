@@ -91,7 +91,15 @@ notification_methods = [
         "id" : "GoogleChatTest",
         "type" : "googleChatWebhook",
         "config": {
-            "webhook_url": "https://chat.googleapis.com/v1/spaces/AAQAl1_Z46w/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=vmmMicu-fXsPcljWv717JLxCuv8UrMgASFE1x6bfCnM"
+            "webhook_url": os.getenv("GOOGLE_CHAT_TEST_URL")
+        }
+    },
+    {
+        "id" : "GoogleChatProd",
+        "type" : "googleChatWebhook",
+        "config": {
+            "webhook_url": os.getenv("GOOGLE_CHAT_URL"),
+            "admit_status_up" : False
         }
     }
     
@@ -111,7 +119,7 @@ notificators = [
     },
     {
         "id" : "discord_only",
-        "notification_methods": ["DiscordPetersenServer",  "GoogleChatTest"]
+        "notification_methods": ["DiscordPetersenServer",  "GoogleChatProd"]
     },
     {
         "id" : "discord_test_channel",
@@ -123,11 +131,11 @@ notificators = [
     },
     {
         "id" : "email_and_discord_impala",
-        "notification_methods": ["MailSoporteL1", "DiscordPetersenImpala", "GoogleChatTest"]
+        "notification_methods": ["MailSoporteL1", "DiscordPetersenImpala", "GoogleChatProd"]
     },
     {
         "id" : "email_and_discord_livy",
-        "notification_methods": ["MailSoporteL1", "DiscordPetersenLivy", "GoogleChatTest"]
+        "notification_methods": ["MailSoporteL1", "DiscordPetersenLivy", "GoogleChatProd"]
     },
     {
         "id" : "google_chat_test",
