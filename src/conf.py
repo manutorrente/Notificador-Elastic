@@ -99,7 +99,6 @@ notification_methods = [
         "type" : "googleChatWebhook",
         "config": {
             "webhook_url": os.getenv("GOOGLE_CHAT_URL"),
-            "admit_status_up" : False
         }
     }
     
