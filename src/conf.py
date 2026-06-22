@@ -160,7 +160,7 @@ indexes_to_monitor = [
     },
     {
         "index" : "alertas-servicios-down-high-priority",
-        "notificator_id" : "email_and_discord",
+        "notificator_id" : "discord_cdp_and_google_chat",
         "connection" : "elastic_prod"  
     },
     {
