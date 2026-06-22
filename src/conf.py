@@ -117,8 +117,12 @@ notificators = [
         "notification_methods": ["SMTPEmailMethodTest", "DiscordPetersenServer"]
     },
     {
-        "id" : "discord_only",
+        "id" : "discord_cdp_and_google_chat",
         "notification_methods": ["DiscordPetersenServer",  "GoogleChatProd"]
+    },
+    {
+        "id" : "discord_only",
+        "notification_methods": ["DiscordPetersenServer"]
     },
     {
         "id" : "discord_test_channel",
@@ -153,6 +157,11 @@ indexes_to_monitor = [
         "index" : "alertas-servicios-down",
         "notificator_id" : "discord_only",
         "connection" : "elastic_prod"
+    },
+    {
+        "index" : "alertas-servicios-down-high-priority",
+        "notificator_id" : "email_and_discord",
+        "connection" : "elastic_prod"  
     },
     {
         "index" : "alertas-servicios-down",
