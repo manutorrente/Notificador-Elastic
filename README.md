@@ -19,7 +19,7 @@ Alert documents in Elasticsearch should have the following structure:
 {
     "processed": false,
     "@timestamp": "2026-01-22T10:30:00Z",
-    "message": "Critical: Database server is unreachable"
+    "message": "TEST: Database server is unreachable"
 }
 ```
 

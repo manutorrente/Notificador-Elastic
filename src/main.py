@@ -8,7 +8,6 @@ Designed to run as a Linux systemd service with graceful shutdown handling.
 """
 
 import signal
-import sys
 import time
 from datetime import datetime
 from typing import Optional
@@ -43,6 +42,17 @@ class AlertPollerService:
         sig_name = signal.Signals(signum).name
         logger.info(f"Received {sig_name} signal. Initiating graceful shutdown...")
         self.running = False
+
+    def _remove_elasticsearch_client(self, connection_name: str) -> None:
+        """Close and remove a cached Elasticsearch client if it exists."""
+        client = self.es_clients.pop(connection_name, None)
+        if not client:
+            return
+
+        try:
+            client.close()
+        except Exception as e:
+            logger.debug(f"Error closing Elasticsearch connection '{connection_name}': {e}")
     
     def _connect_elasticsearch(self, connection_name: Optional[str] = None) -> bool:
         """
@@ -59,6 +69,9 @@ class AlertPollerService:
         all_ok = True
 
         for name, config in targets.items():
+            if connection_name:
+                self._remove_elasticsearch_client(name)
+
             # Validate required fields before attempting connection
             missing = [k for k in ("host", "username", "password") if not config.get(k)]
             if missing:
@@ -88,6 +101,22 @@ class AlertPollerService:
                 all_ok = False
 
         return all_ok
+
+    def _refresh_elasticsearch_connections(self) -> None:
+        """Verify all configured Elasticsearch connections and reconnect missing ones."""
+        for conn_name in elasticsearch_connections:
+            client = self.es_clients.get(conn_name)
+
+            if client:
+                try:
+                    if client.ping():
+                        continue
+                    raise ConnectionError(f"Ping failed for '{conn_name}'")
+                except Exception:
+                    logger.warning(f"Lost connection to Elasticsearch '{conn_name}'. Attempting to reconnect...")
+                    self._remove_elasticsearch_client(conn_name)
+
+            self._connect_elasticsearch(conn_name)
     
     def _fetch_unprocessed_alerts(self, index: str, connection_name: str) -> list:
         """
@@ -265,21 +294,14 @@ class AlertPollerService:
         
         # Connect to all Elasticsearch instances
         if not self._connect_elasticsearch():
-            logger.error("Failed to establish initial connection to one or more Elasticsearch instances. Exiting.")
-            sys.exit(1)
+            logger.warning("Starting with one or more Elasticsearch connections unavailable. They will be retried periodically.")
         
         self.running = True
         
         while self.running:
             try:
                 # Check Elasticsearch connections and reconnect if needed
-                for conn_name, client in list(self.es_clients.items()):
-                    try:
-                        if not client.ping():
-                            raise ConnectionError(f"Ping failed for '{conn_name}'")
-                    except Exception:
-                        logger.warning(f"Lost connection to Elasticsearch '{conn_name}'. Attempting to reconnect...")
-                        self._connect_elasticsearch(conn_name)
+                self._refresh_elasticsearch_connections()
                 
                 # Process alerts for each configured index
                 total_processed = 0
